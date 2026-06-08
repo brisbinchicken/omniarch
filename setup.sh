@@ -264,6 +264,7 @@ if [ "$APPLY_DOTFILES" -eq 1 ]; then
     fi
 fi
 
-echo -e "${GREEN}[SUCCESS]${RESET} OmniArch setup is almost complete! Enabling SDDM..."
+echo -e "${GREEN}[SUCCESS]${RESET} OmniArch setup is almost complete! Enabling services..."
+sudo systemctl enable qemu-guest-agent 2>/dev/null || true
 sudo systemctl enable sddm
 echo -e "${GREEN}[SUCCESS]${RESET} OmniArch setup is fully complete! Please restart your system to realise all changes."

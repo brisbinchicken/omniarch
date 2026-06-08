@@ -32,6 +32,7 @@ plasma-wayland-session
 plasma-workspace
 powershell-bin
 proton-authenticator-bin
+qemu-guest-agent
 qt5-graphicaleffects
 qt5-quickcontrols2
 qt5-svg

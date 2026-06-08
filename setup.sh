@@ -122,8 +122,9 @@ if [ "$INSTALL_PACKAGES" -eq 1 ]; then
     # Start a sudo keep-alive loop in the background to prevent timeouts during long builds
     while true; do sudo -n true; sleep 60; kill -0 "$$" || exit; done 2>/dev/null &
     
-    # Use gum spin to provide a loading spinner
-    gum spin --spinner dot --title "Installing applications..." -- yay -S --needed --noconfirm - < "$CLONE_DIR/configs/pkglist.txt"
+    echo -e "${CYAN}[INFO]${RESET} Installing applications... (Native progress bars will be shown)"
+    mapfile -t PKG_ARRAY < "$CLONE_DIR/configs/pkglist.txt"
+    yay -S --needed --noconfirm "${PKG_ARRAY[@]}"
     
     echo -e "${GREEN}[SUCCESS]${RESET} Applications installed successfully!"
 fi
@@ -235,7 +236,7 @@ if [ "$APPLY_DOTFILES" -eq 1 ]; then
         echo -e "${MAGENTA}[INFO]${RESET} Authenticating to deploy SDDM configuration..."
         sudo -v
         
-        gum spin --spinner dot --title "Deploying SDDM theme and configuration..." -- bash -c '
+        gum spin --spinner line --title "Deploying SDDM theme and configuration..." -- bash -c '
             # Copy the theme folder(s) into /usr/share/sddm/themes/
             for theme_dir in "'"$CLONE_DIR"'/configs/sddm/themes/"*; do
                 [ -d "$theme_dir" ] || continue

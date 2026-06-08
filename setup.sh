@@ -116,6 +116,7 @@ if [ "$INSTALL_PACKAGES" -eq 1 ]; then
     echo -e "${MAGENTA}[INFO]${RESET} Installing applications from pkglist.txt..."
     
     # Refresh sudo timestamp so makepkg doesn't prompt for a password inside gum spin
+    echo -e "${MAGENTA}[INFO]${RESET} Authenticating to proceed with package installation..."
     sudo -v
     
     # Use gum spin to provide a loading spinner

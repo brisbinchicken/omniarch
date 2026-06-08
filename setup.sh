@@ -56,12 +56,12 @@ fi
 # Phase 2: Dependency Fulfillment
 
 if ! command -v yay &> /dev/null; then
-    echo -e "${YELLOW}[INFO]${RESET} yay not found. Building and installing yay..."
-    git clone https://aur.archlinux.org/yay.git /tmp/yay
-    cd /tmp/yay
+    echo -e "${YELLOW}[INFO]${RESET} yay not found. Building and installing yay-bin..."
+    git clone https://aur.archlinux.org/yay-bin.git /tmp/yay-bin
+    cd /tmp/yay-bin
     makepkg -si --noconfirm
     cd "$CLONE_DIR"
-    rm -rf /tmp/yay
+    rm -rf /tmp/yay-bin
 fi
 
 echo -e "${CYAN}[INFO]${RESET} Ensuring gum is installed for the UI..."
@@ -118,6 +118,9 @@ if [ "$INSTALL_PACKAGES" -eq 1 ]; then
     # Refresh sudo timestamp so makepkg doesn't prompt for a password inside gum spin
     echo -e "${MAGENTA}[INFO]${RESET} Authenticating to proceed with package installation..."
     sudo -v
+    
+    # Start a sudo keep-alive loop in the background to prevent timeouts during long builds
+    while true; do sudo -n true; sleep 60; kill -0 "$$" || exit; done 2>/dev/null &
     
     # Use gum spin to provide a loading spinner
     gum spin --spinner dot --title "Installing applications..." -- yay -S --needed --noconfirm - < "$CLONE_DIR/configs/pkglist.txt"
@@ -228,20 +231,38 @@ if [ "$APPLY_DOTFILES" -eq 1 ]; then
     echo -e "${GREEN}[SUCCESS]${RESET} Desktop customisations applied successfully!"
 
     # Handle SDDM Theme and Config (System-wide, requires sudo)
-    if [ -d "$CLONE_DIR/configs/sddm/theme" ]; then
-        echo -e "${MAGENTA}[INFO]${RESET} Applying SDDM theme and configuration (requires sudo)..."
+    if [ -d "$CLONE_DIR/configs/sddm/themes" ]; then
+        echo -e "${MAGENTA}[INFO]${RESET} Authenticating to deploy SDDM configuration..."
         sudo -v
         
-        # Copy the theme folder(s) into /usr/share/sddm/themes/
-        sudo cp -r "$CLONE_DIR/configs/sddm/theme/"* /usr/share/sddm/themes/ 2>/dev/null || true
-        
-        # Apply the default configuration
-        if [ -f "$CLONE_DIR/configs/sddm/default.conf" ]; then
-            sudo mkdir -p /etc/sddm.conf.d/
-            sudo cp "$CLONE_DIR/configs/sddm/default.conf" /etc/sddm.conf.d/default.conf
-            sudo chmod 644 /etc/sddm.conf.d/default.conf
-        fi
+        gum spin --spinner dot --title "Deploying SDDM theme and configuration..." -- bash -c '
+            # Copy the theme folder(s) into /usr/share/sddm/themes/
+            for theme_dir in "'"$CLONE_DIR"'/configs/sddm/themes/"*; do
+                [ -d "$theme_dir" ] || continue
+                theme_name=$(basename "$theme_dir")
+                sudo cp -r "$theme_dir" /usr/share/sddm/themes/
+                sudo chmod -R 755 "/usr/share/sddm/themes/$theme_name"
+            done
+            
+            # Apply the default configuration
+            if [ -d "'"$CLONE_DIR"'/configs/sddm/conf" ]; then
+                sudo mkdir -p /etc/sddm.conf.d/
+                sudo cp -r "'"$CLONE_DIR"'/configs/sddm/conf/"* /etc/sddm.conf.d/
+                sudo chmod 644 /etc/sddm.conf.d/*
+                
+                # Extract deployed theme name and explicitly update Current theme
+                theme_name=$(basename "$(ls -d "'"$CLONE_DIR"'/configs/sddm/themes/"*/ | head -n 1)" 2>/dev/null)
+                if [ -n "$theme_name" ]; then
+                    for conf in /etc/sddm.conf.d/*; do
+                        [ -f "$conf" ] && sudo sed -i "s/^Current=.*/Current=$theme_name/" "$conf" 2>/dev/null || true
+                    done
+                fi
+            fi
+        '
+        echo -e "${GREEN}[SUCCESS]${RESET} SDDM theme and configuration deployed successfully!"
     fi
 fi
 
-echo -e "${GREEN}[SUCCESS]${RESET} OmniArch setup is complete! Please restart your terminal or log out and back in to realise all changes."
+echo -e "${GREEN}[SUCCESS]${RESET} OmniArch setup is almost complete! Enabling SDDM..."
+sudo systemctl enable sddm
+echo -e "${GREEN}[SUCCESS]${RESET} OmniArch setup is fully complete! Please restart your system to realise all changes."

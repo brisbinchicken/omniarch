@@ -67,12 +67,14 @@ fi
 echo -e "${CYAN}[INFO]${RESET} Ensuring gum is installed for the UI..."
 yay -S --needed --noconfirm gum
 
-# Phase 3: Package Arrays
+# Phase 3: Package List Validation
 
-CORE_PKGS=(btrfs-progs btrfs-assistant snapper snap-pac fwupd downgrade reflector)
-CLI_PKGS=(btop fastfetch bat duf oh-my-posh-bin tldr trash-cli)
-IT_NET_PKGS=(rustdesk-bin filezilla openssh wireguard-tools dnsmasq nmap bind)
-DESKTOP_PKGS=(plasma-desktop breeze-gtk ttf-cascadia-code-nerd dolphin konsole spectacle)
+# We now read from pkglist.txt directly. Let's just ensure the file exists.
+PKG_LIST_FILE="$CLONE_DIR/configs/pkglist.txt"
+if [ ! -f "$PKG_LIST_FILE" ]; then
+    echo -e "${RED}[ERROR]${RESET} $PKG_LIST_FILE not found. Cannot proceed with package installation."
+    exit 1
+fi
 
 # Phase 4: The Interactive UI (using gum)
 
@@ -85,10 +87,7 @@ gum style \
 echo -e "${CYAN}Please select the categories you wish to install or customise:${RESET}"
 
 SELECTIONS=$(gum choose --no-limit --cursor-prefix "[ ] " --selected-prefix "[x] " --unselected-prefix "[ ] " \
-    "Core System" \
-    "Terminal Utilities" \
-    "IT/Networking" \
-    "Desktop Environment" \
+    "Install Packages from pkglist.txt" \
     "Apply Custom Dotfiles")
 
 # If the user pressed Esc or selected nothing
@@ -97,22 +96,13 @@ if [ -z "$SELECTIONS" ]; then
     exit 0
 fi
 
-INSTALL_LIST=()
+INSTALL_PACKAGES=0
 APPLY_DOTFILES=0
 
 while IFS= read -r choice; do
     case "$choice" in
-        "Core System")
-            INSTALL_LIST+=("${CORE_PKGS[@]}")
-            ;;
-        "Terminal Utilities")
-            INSTALL_LIST+=("${CLI_PKGS[@]}")
-            ;;
-        "IT/Networking")
-            INSTALL_LIST+=("${IT_NET_PKGS[@]}")
-            ;;
-        "Desktop Environment")
-            INSTALL_LIST+=("${DESKTOP_PKGS[@]}")
+        "Install Packages from pkglist.txt")
+            INSTALL_PACKAGES=1
             ;;
         "Apply Custom Dotfiles")
             APPLY_DOTFILES=1
@@ -122,16 +112,16 @@ done <<< "$SELECTIONS"
 
 # Phase 5: Execution & Dotfile Symlinking
 
-if [ ${#INSTALL_LIST[@]} -gt 0 ]; then
-    echo -e "${MAGENTA}[INFO]${RESET} Installing selected packages..."
+if [ "$INSTALL_PACKAGES" -eq 1 ]; then
+    echo -e "${MAGENTA}[INFO]${RESET} Installing applications from pkglist.txt..."
     
     # Refresh sudo timestamp so makepkg doesn't prompt for a password inside gum spin
     sudo -v
     
     # Use gum spin to provide a loading spinner
-    gum spin --spinner dot --title "Installing packages with yay..." -- yay -S --needed --noconfirm "${INSTALL_LIST[@]}"
+    gum spin --spinner dot --title "Installing applications..." -- yay -S --needed --noconfirm - < "$CLONE_DIR/configs/pkglist.txt"
     
-    echo -e "${GREEN}[SUCCESS]${RESET} Packages installed successfully!"
+    echo -e "${GREEN}[SUCCESS]${RESET} Applications installed successfully!"
 fi
 
 if [ "$APPLY_DOTFILES" -eq 1 ]; then
@@ -153,6 +143,71 @@ if [ "$APPLY_DOTFILES" -eq 1 ]; then
     ln -sf "$CLONE_DIR/configs/fastfetch.jsonc" "$HOME/.config/fastfetch/config.jsonc"
     
     echo -e "${GREEN}[SUCCESS]${RESET} Dotfiles applied successfully!"
+fi
+
+# Phase 6: Apply Desktop Customisations
+
+if [ "$APPLY_DOTFILES" -eq 1 ]; then
+    echo -e "${CYAN}[INFO]${RESET} Applying KDE desktop customisations..."
+    
+    # Create necessary target directories
+    mkdir -p "$HOME/.config"
+    mkdir -p "$HOME/.local/share/plasma/look-and-feel"
+    mkdir -p "$HOME/.local/share/icons"
+    mkdir -p "$HOME/.local/share/fonts"
+    mkdir -p "$HOME/Pictures"
+
+    # Symlink kdeglobals
+    if [ -f "$HOME/.config/kdeglobals" ] && [ ! -L "$HOME/.config/kdeglobals" ]; then
+        mv "$HOME/.config/kdeglobals" "$HOME/.config/kdeglobals.bak"
+    fi
+    ln -sf "$CLONE_DIR/configs/kde/config/kdeglobals" "$HOME/.config/kdeglobals"
+
+    # Symlink konsolerc
+    if [ -f "$HOME/.config/konsolerc" ] && [ ! -L "$HOME/.config/konsolerc" ]; then
+        mv "$HOME/.config/konsolerc" "$HOME/.config/konsolerc.bak"
+    fi
+    ln -sf "$CLONE_DIR/configs/kde/config/konsolerc" "$HOME/.config/konsolerc"
+
+    # Symlink Look and Feel
+    if [ -d "$CLONE_DIR/configs/kde/look-and-feel/Kaze-dark" ]; then
+        rm -rf "$HOME/.local/share/plasma/look-and-feel/Kaze-dark"
+        ln -sfn "$CLONE_DIR/configs/kde/look-and-feel/Kaze-dark" "$HOME/.local/share/plasma/look-and-feel/Kaze-dark"
+    fi
+
+    # Symlink Icons
+    if [ -d "$CLONE_DIR/configs/kde/icons/Kaze-dark" ]; then
+        rm -rf "$HOME/.local/share/icons/Kaze-dark"
+        ln -sfn "$CLONE_DIR/configs/kde/icons/Kaze-dark" "$HOME/.local/share/icons/Kaze-dark"
+    fi
+
+    # Symlink Fonts
+    if [ -d "$CLONE_DIR/configs/kde/fonts" ]; then
+        for font in "$CLONE_DIR/configs/kde/fonts"/*; do
+            [ -e "$font" ] || continue
+            base_font=$(basename "$font")
+            rm -rf "$HOME/.local/share/fonts/$base_font"
+            ln -sfn "$font" "$HOME/.local/share/fonts/$base_font"
+        done
+        # Refresh font cache
+        if command -v fc-cache &> /dev/null; then
+            fc-cache -f "$HOME/.local/share/fonts"
+        fi
+    fi
+
+    # Handle Wallpaper
+    if [ -f "$CLONE_DIR/wallpaper.jpeg" ]; then
+        cp "$CLONE_DIR/wallpaper.jpeg" "$HOME/Pictures/wallpaper.jpeg"
+        
+        # Set wallpaper using the appropriate Plasma 6 command
+        if command -v plasma-apply-wallpaperimage &> /dev/null; then
+            plasma-apply-wallpaperimage "$HOME/Pictures/wallpaper.jpeg" || true
+        else
+            kwriteconfig6 --file "$HOME/.config/plasma-org.kde.plasma.desktop-appletsrc" --group "Containments" --group "1" --group "Wallpaper" --group "org.kde.image" --group "General" --key "Image" "file://$HOME/Pictures/wallpaper.jpeg" || true
+        fi
+    fi
+
+    echo -e "${GREEN}[SUCCESS]${RESET} Desktop customisations applied successfully!"
 fi
 
 echo -e "${GREEN}[SUCCESS]${RESET} OmniArch setup is complete! Please restart your terminal or log out and back in to realise all changes."

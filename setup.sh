@@ -135,13 +135,7 @@ if [ "$APPLY_DOTFILES" -eq 1 ]; then
     fi
     ln -sf "$CLONE_DIR/configs/.bashrc" "$HOME/.bashrc"
     
-    # Fastfetch config
-    mkdir -p "$HOME/.config/fastfetch"
-    if [ -f "$HOME/.config/fastfetch/config.jsonc" ] && [ ! -L "$HOME/.config/fastfetch/config.jsonc" ]; then
-        echo -e "${YELLOW}[INFO]${RESET} Backing up existing fastfetch config to config.jsonc.bak"
-        mv "$HOME/.config/fastfetch/config.jsonc" "$HOME/.config/fastfetch/config.jsonc.bak"
-    fi
-    ln -sf "$CLONE_DIR/configs/fastfetch.jsonc" "$HOME/.config/fastfetch/config.jsonc"
+
     
     echo -e "${GREEN}[SUCCESS]${RESET} Dotfiles applied successfully!"
 fi
@@ -157,6 +151,15 @@ if [ "$APPLY_DOTFILES" -eq 1 ]; then
     mkdir -p "$HOME/.local/share/icons"
     mkdir -p "$HOME/.local/share/fonts"
     mkdir -p "$HOME/Pictures"
+
+    # Fastfetch config
+    if [ -f "$CLONE_DIR/configs/fastfetch/config.jsonc" ]; then
+        mkdir -p "$HOME/.config/fastfetch"
+        if [ -f "$HOME/.config/fastfetch/config.jsonc" ] && [ ! -L "$HOME/.config/fastfetch/config.jsonc" ]; then
+            mv "$HOME/.config/fastfetch/config.jsonc" "$HOME/.config/fastfetch/config.jsonc.bak"
+        fi
+        ln -sf "$CLONE_DIR/configs/fastfetch/config.jsonc" "$HOME/.config/fastfetch/config.jsonc"
+    fi
 
     # Symlink kdeglobals
     if [ -f "$HOME/.config/kdeglobals" ] && [ ! -L "$HOME/.config/kdeglobals" ]; then
@@ -196,6 +199,20 @@ if [ "$APPLY_DOTFILES" -eq 1 ]; then
         fi
     fi
 
+    # Handle PWAs
+    if [ -d "$CLONE_DIR/configs/pwas" ]; then
+        mkdir -p "$HOME/.local/share/applications"
+        for pwa in "$CLONE_DIR/configs/pwas"/*.desktop; do
+            [ -e "$pwa" ] || continue
+            base_pwa=$(basename "$pwa")
+            ln -sf "$pwa" "$HOME/.local/share/applications/$base_pwa"
+        done
+        # Update desktop database so they appear in the app menu
+        if command -v update-desktop-database &> /dev/null; then
+            update-desktop-database "$HOME/.local/share/applications"
+        fi
+    fi
+
     # Handle Wallpaper
     if [ -f "$CLONE_DIR/wallpaper.jpeg" ]; then
         cp "$CLONE_DIR/wallpaper.jpeg" "$HOME/Pictures/wallpaper.jpeg"
@@ -209,6 +226,22 @@ if [ "$APPLY_DOTFILES" -eq 1 ]; then
     fi
 
     echo -e "${GREEN}[SUCCESS]${RESET} Desktop customisations applied successfully!"
+
+    # Handle SDDM Theme and Config (System-wide, requires sudo)
+    if [ -d "$CLONE_DIR/configs/sddm/theme" ]; then
+        echo -e "${MAGENTA}[INFO]${RESET} Applying SDDM theme and configuration (requires sudo)..."
+        sudo -v
+        
+        # Copy the theme folder(s) into /usr/share/sddm/themes/
+        sudo cp -r "$CLONE_DIR/configs/sddm/theme/"* /usr/share/sddm/themes/ 2>/dev/null || true
+        
+        # Apply the default configuration
+        if [ -f "$CLONE_DIR/configs/sddm/default.conf" ]; then
+            sudo mkdir -p /etc/sddm.conf.d/
+            sudo cp "$CLONE_DIR/configs/sddm/default.conf" /etc/sddm.conf.d/default.conf
+            sudo chmod 644 /etc/sddm.conf.d/default.conf
+        fi
+    fi
 fi
 
 echo -e "${GREEN}[SUCCESS]${RESET} OmniArch setup is complete! Please restart your terminal or log out and back in to realise all changes."

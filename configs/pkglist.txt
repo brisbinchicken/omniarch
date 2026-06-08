@@ -20,7 +20,7 @@ haruna
 inxi
 kdeconnect
 kio-admin
-linutil-bin
+linutil-git
 meld
 obsidian
 oh-my-posh-bin

@@ -1,0 +1,133 @@
+{
+  "$schema": "https://github.com/fastfetch-cli/fastfetch/raw/master/doc/json_schema.json",
+  "logo": {
+    "padding": {
+      "top": 4
+    },
+    "color": {
+      "1": "cyan",
+      "2": "cyan"
+    }
+  },
+  "display": {
+    "separator": " "
+  },
+  "modules": [
+    "break",
+    {
+      "type": "custom",
+      "format": "\u001b[90m─────── Hardware ───────"
+    },
+    "break",
+    {
+      "type": "cpu",
+      "key": " ├─ ",
+      "keyColor": "green"
+    },
+    {
+      "type": "gpu",
+      "key": " ├─ 󰢮",
+      "keyColor": "green"
+    },
+    {
+      "type": "display",
+      "key": " ├─ 󰍹",
+      "keyColor": "green"
+    },
+    {
+      "type": "memory",
+      "key": " ├─ ",
+      "keyColor": "green"
+    },
+    {
+      "type": "disk",
+      "key": " ├─ ",
+      "keyColor": "green"
+    },
+    {
+      "type": "swap",
+      "key": " └─ 󰓡",
+      "keyColor": "green"
+    },
+    "break",
+    {
+      "type": "custom",
+      "format": "\u001b[90m─────── Software ───────"
+    },
+    "break",
+    {
+      "type": "os",
+      "key": " ├─ 󰣇",
+      "keyColor": "cyan",
+      "format": "Arch Linux x86_64"
+    },
+    {
+      "type": "kernel",
+      "key": " ├─ ",
+      "keyColor": "cyan"
+    },
+    {
+      "type": "packages",
+      "key": " ├─ 󰏖",
+      "keyColor": "cyan"
+    },
+    {
+      "type": "shell",
+      "key": " └─ ",
+      "keyColor": "cyan"
+    },
+    "break",
+    {
+      "type": "custom",
+      "format": "\u001b[90m─────── Desktop ────────"
+    },
+    "break",
+    {
+      "type": "de",
+      "key": " ├─ 󰧨",
+      "keyColor": "blue"
+    },
+    {
+      "type": "wm",
+      "key": " ├─ 󱂬",
+      "keyColor": "blue"
+    },
+    {
+      "type": "theme",
+      "key": " ├─ 󰉼",
+      "keyColor": "blue"
+    },
+    {
+      "type": "icons",
+      "key": " ├─ 󰀻",
+      "keyColor": "blue"
+    },
+    {
+      "type": "font",
+      "key": " ├─ ",
+      "keyColor": "blue"
+    },
+    {
+      "type": "terminal",
+      "key": " └─ ",
+      "keyColor": "blue"
+    },
+    "break",
+    {
+      "type": "custom",
+      "format": "\u001b[90m────── Uptime / Age ────"
+    },
+    "break",
+    {
+      "type": "command",
+      "key": " OS Age",
+      "keyColor": "magenta",
+      "text": "echo $(( ($(date +%s) - $(stat -c %W /)) / 86400 )) days"
+    },
+    {
+      "type": "uptime",
+      "key": " Uptime",
+      "keyColor": "magenta"
+    }
+  ]
+}

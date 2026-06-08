@@ -42,4 +42,4 @@ ttf-cascadia-code-nerd
 vlc
 webex-bin
 wireguard-tools
-yay
+yay-bin
